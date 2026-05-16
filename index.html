@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Absensi - SDN 1 Rarang Selatan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        sekolah: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            900: '#14532d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #16a34a;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col font-sans">
+
+    <!-- Header -->
+    <header class="bg-sekolah-700 text-white shadow-md w-full">
+        <div class="max-w-4xl mx-auto px-4 py-6 text-center sm:text-left flex flex-col sm:flex-row items-center justify-between">
+            <div class="flex items-center justify-center space-x-4 mb-4 sm:mb-0">
+                <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center text-sekolah-700 font-bold text-xl shadow-inner border-2 border-sekolah-500">
+                    <i class="fas fa-school text-3xl"></i>
+                </div>
+                <div class="text-left">
+                    <h1 class="text-2xl font-bold tracking-wide">SDN 1 Rarang Selatan</h1>
+                    <p class="text-sekolah-100 text-sm">Portal Absensi Guru & Pegawai</p>
+                </div>
+            </div>
+            
+            <div class="bg-sekolah-900 bg-opacity-50 px-4 py-2 rounded-lg border border-sekolah-600 shadow-inner text-center sm:text-right">
+                <p id="current-date" class="text-sm font-medium text-sekolah-100"></p>
+                <p id="current-time" class="text-2xl font-bold font-mono tracking-wider"></p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow flex items-center justify-center p-4 w-full">
+        <div class="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 relative">
+            
+            <!-- Indikator Status Lokasi -->
+            <div id="location-status-bar" class="w-full py-2 px-4 text-sm font-semibold flex items-center justify-center space-x-2 bg-yellow-100 text-yellow-800 border-b border-yellow-200 transition-colors duration-300">
+                <i id="location-icon" class="fas fa-spinner fa-spin"></i>
+                <span id="location-text">Memeriksa lokasi...</span>
+            </div>
+
+            <div class="p-6 sm:p-8">
+                <h2 class="text-xl font-semibold text-gray-800 border-b pb-3 mb-6 flex items-center">
+                    <i class="fas fa-user-check mr-2 text-sekolah-600"></i>
+                    Formulir Kehadiran
+                </h2>
+
+                <form id="attendance-form" class="space-y-5">
+                    
+                    <!-- Pilihan Pegawai -->
+                    <div>
+                        <label for="pegawai-select" class="block text-sm font-medium text-gray-700 mb-1">Pilih Nama Guru / Pegawai</label>
+                        <div class="relative rounded-md shadow-sm">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-user text-gray-400"></i>
+                            </div>
+                            <select id="pegawai-select" name="pegawai_id" required
+                                class="focus:ring-sekolah-500 focus:border-sekolah-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-lg py-2.5 bg-gray-50 border appearance-none transition-colors">
+                                <option value="" disabled selected>-- Pilih Nama Anda --</option>
+                            </select>
+                            <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                <i class="fas fa-chevron-down text-gray-400 text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Jabatan -->
+                     <div>
+                        <label for="jabatan" class="block text-sm font-medium text-gray-700 mb-1">Status Kepegawaian</label>
+                        <div class="relative rounded-md shadow-sm">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-id-badge text-gray-400"></i>
+                            </div>
+                            <input type="text" id="jabatan" name="jabatan" readonly
+                                class="block w-full pl-10 sm:text-sm border-gray-300 rounded-lg py-2.5 bg-gray-100 text-gray-500 border cursor-not-allowed"
+                                placeholder="Otomatis terisi">
+                        </div>
+                    </div>
+
+                    <!-- Keterangan -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Keterangan Hari Ini</label>
+                        <div class="grid grid-cols-3 gap-3">
+                            <label class="relative">
+                                <input type="radio" name="keterangan" value="Hadir" class="peer sr-only" checked>
+                                <div class="p-2 text-center rounded-lg border-2 cursor-pointer transition-all peer-checked:border-sekolah-500 peer-checked:bg-sekolah-50 peer-checked:text-sekolah-700 hover:bg-gray-50 border-gray-200 text-gray-600">
+                                    <i class="fas fa-check-circle block mb-1"></i>
+                                    <span class="text-sm font-medium">Hadir</span>
+                                </div>
+                            </label>
+                            <label class="relative">
+                                <input type="radio" name="keterangan" value="Sakit" class="peer sr-only">
+                                <div class="p-2 text-center rounded-lg border-2 cursor-pointer transition-all peer-checked:border-yellow-500 peer-checked:bg-yellow-50 peer-checked:text-yellow-700 hover:bg-gray-50 border-gray-200 text-gray-600">
+                                    <i class="fas fa-notes-medical block mb-1"></i>
+                                    <span class="text-sm font-medium">Sakit</span>
+                                </div>
+                            </label>
+                            <label class="relative">
+                                <input type="radio" name="keterangan" value="Izin" class="peer sr-only">
+                                <div class="p-2 text-center rounded-lg border-2 cursor-pointer transition-all peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-700 hover:bg-gray-50 border-gray-200 text-gray-600">
+                                    <i class="fas fa-envelope-open-text block mb-1"></i>
+                                    <span class="text-sm font-medium">Izin</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Input Detail Keterangan Izin/Sakit -->
+                    <div id="keterangan-detail-container" class="hidden transition-all duration-300">
+                        <label for="detail-keterangan" class="block text-sm font-medium text-gray-700 mb-1">Alasan / Detail</label>
+                        <textarea id="detail-keterangan" name="detail_keterangan" rows="2"
+                            class="focus:ring-sekolah-500 focus:border-sekolah-500 block w-full sm:text-sm border-gray-300 rounded-lg p-2.5 bg-gray-50 border transition-colors"
+                            placeholder="Tuliskan alasan izin/sakit di sini..."></textarea>
+                    </div>
+
+                    <!-- Tombol Aksi -->
+                    <div class="pt-4 grid grid-cols-2 gap-4">
+                        <button type="button" id="btn-masuk" disabled
+                            class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gray-400 cursor-not-allowed transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sekolah-500">
+                            <i class="fas fa-sign-in-alt mr-2 mt-1"></i> Absen Masuk
+                        </button>
+                        <button type="button" id="btn-pulang" disabled
+                            class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gray-400 cursor-not-allowed transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                            <i class="fas fa-sign-out-alt mr-2 mt-1"></i> Absen Pulang
+                        </button>
+                    </div>
+                </form>
+
+                <div class="mt-6 border-t border-gray-100 pt-4">
+                    <button type="button" id="btn-show-rekap"
+                        class="w-full flex justify-center items-center py-2.5 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                        <i class="fas fa-table mr-2 text-sekolah-600"></i> Buka Rekap Harian
+                    </button>
+                </div>
+            </div>
+            
+            <div id="loading-overlay" class="absolute inset-0 bg-white bg-opacity-90 flex flex-col items-center justify-center hidden z-20 rounded-2xl">
+                <div class="loader mb-4"></div>
+                <p class="text-sekolah-700 font-medium animate-pulse">Menyimpan data...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Notifikasi -->
+    <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black bg-opacity-50 backdrop-blur-sm transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 transform scale-95 transition-transform duration-300">
+            <div id="modal-icon" class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                <i class="fas fa-check text-2xl text-green-600"></i>
+            </div>
+            <h3 class="text-lg leading-6 font-bold text-gray-900 text-center mb-2" id="modal-title">Berhasil!</h3>
+            <div class="mt-2">
+                <p class="text-sm text-gray-600 text-center" id="modal-message"></p>
+            </div>
+            <div class="mt-6 flex justify-center">
+                <button type="button" id="btn-close-modal"
+                    class="inline-flex justify-center w-full rounded-lg border border-transparent shadow-sm px-4 py-2 bg-sekolah-600 text-base font-medium text-white hover:bg-sekolah-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sekolah-500 sm:text-sm">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Autentikasi PIN -->
+    <div id="modal-pin" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black bg-opacity-50 backdrop-blur-sm transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 transform scale-95 transition-transform duration-300">
+            <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-4">
+                <i class="fas fa-lock text-2xl text-blue-600"></i>
+            </div>
+            <h3 class="text-lg leading-6 font-bold text-gray-900 text-center mb-2">Akses Terbatas</h3>
+            <p class="text-sm text-gray-600 text-center mb-4">Masukkan PIN Admin untuk mengunduh rekapitulasi.</p>
+            
+            <!-- Input PIN -->
+            <input type="password" id="input-pin" class="focus:ring-sekolah-500 focus:border-sekolah-500 block w-full text-center tracking-widest text-lg sm:text-xl border-gray-300 rounded-lg py-3 bg-gray-50 border mb-2" placeholder="****" maxlength="4">
+            <p id="pin-error" class="text-xs text-red-500 text-center hidden mb-4">PIN yang Anda masukkan salah!</p>
+
+            <div class="mt-4 grid grid-cols-2 gap-3">
+                <button type="button" id="btn-cancel-pin" class="w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:text-sm transition-colors">Batal</button>
+                <button type="button" id="btn-submit-pin" class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-sekolah-600 text-base font-medium text-white hover:bg-sekolah-700 sm:text-sm transition-colors">Verifikasi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Rekap Bulanan -->
+    <div id="modal-rekap" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black bg-opacity-50 backdrop-blur-sm transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col transform scale-95 transition-transform duration-300">
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-4 border-b pb-3 gap-4">
+                <h3 class="text-xl font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-calendar-check text-sekolah-600 mr-2"></i> Rekap Kehadiran
+                </h3>
+                <div class="flex items-center space-x-2">
+                    <button type="button" id="btn-export-excel" class="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition flex items-center shadow-sm">
+                        <i class="fas fa-file-excel mr-2"></i> Ekspor CSV
+                    </button>
+                    <button type="button" id="btn-close-rekap" class="p-1.5 text-gray-400 hover:text-red-500 transition rounded-full hover:bg-red-50">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="overflow-x-auto flex-grow rounded-lg border border-gray-200">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                            <th scope="col" class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Nama / NIP</th>
+                            <th scope="col" class="px-6 py-3 text-center font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th scope="col" class="px-6 py-3 text-center font-medium text-gray-500 uppercase tracking-wider">Masuk</th>
+                            <th scope="col" class="px-6 py-3 text-center font-medium text-gray-500 uppercase tracking-wider">Pulang</th>
+                            <th scope="col" class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rekap-table-body" class="bg-white divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT JAVASCRIPT ADA DI BAWAH AGAR DOM HTML DIMUAT TERLEBIH DAHULU -->
+    <script>
+        
+        // === KONFIGURASI UJICOBA ===
+        // Ubah true menjadi false jika ingin mengaktifkan kunci lokasi GPS untuk sekolah
+        const MODE_UJICOBA = false; 
+
+        // Database Pengguna
+        const daftarPegawai = [
+            { id: "1", nip: "198212312010011037", nama: "Mispayandi, S.Pd", jabatan: "Plt. Kepala Sekolah" },
+            { id: "2", nip: "197212312008121004", nama: "Marwan, S.Pd", jabatan: "Guru Kelas IVA" },
+            { id: "3", nip: "198408172009011006", nama: "Sam Agustiadi, S.Pd", jabatan: "Guru Kelas V" },
+            { id: "4", nip: "197704212010012008", nama: "Kartini Apriani, S.Pd. SD", jabatan: "Guru Kelas I" },
+            { id: "5", nip: "199403192020122005", nama: "Intan Wulandari Zaini, S.Pd.", jabatan: "Guru Kelas IIA" },
+            { id: "6", nip: "198306292022212005", nama: "Baiq Reni Handayani, S.Pd.", jabatan: "Guru Kelas VI" },
+            { id: "7", nip: "197612102025212038", nama: "Arbaini, S.Pd.I", jabatan: "Guru Kelas PAI" },
+            { id: "8", nip: "198809232025211126", nama: "Irwan Fauzan, S.Pd.", jabatan: "Guru Kelas IVB" },
+            { id: "9", nip: "198903172025211119", nama: "Wahyuddin Muhtar, S.Pd.I", jabatan: "Guru Kelas IIB" },
+            { id: "10", nip: "198903172025211122", nama: "Mahirun Ardiansyah, S.Pd.", jabatan: "Guru Kelas III" },
+            { id: "11", nip: "199705162025211099", nama: "Lalu Nanang Kharidi, S.Pd.", jabatan: "Guru PJOK" },
+            { id: "12", nip: "200112312025211025", nama: "Muh. Dian, S.Pd.", jabatan: "Guru PAI" },
+            { id: "13", nip: "-", nama: "Rizkika Amilia Ardianti, S.Kom.", jabatan: "Operator" },
+            { id: "14", nip: "-", nama: "Sahar.", jabatan: "Penjaga Sekolah" }
+        ];
+
+        const GOOGLE_SHEETS_API_URL = "https://script.google.com/macros/s/AKfycbzvHCXXv5pnPwCDwNmv6UDz9fzYUtLy8QQquTzhIMuzilGIVXJJzzW7Xtsz7Yx-WUJUjg/exec"; 
+
+        // Inisialisasi Waktu
+        document.getElementById('current-date').textContent = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        setInterval(() => {
+            document.getElementById('current-time').textContent = new Date().toLocaleTimeString('id-ID', { hour12: false });
+        }, 1000);
+
+        // Populate Dropdown
+        const selectPegawai = document.getElementById('pegawai-select');
+        const inputJabatan = document.getElementById('jabatan');
+
+        daftarPegawai.forEach(pegawai => {
+            const option = document.createElement('option');
+            option.value = pegawai.id;
+            option.textContent = `${pegawai.nama} ${pegawai.nip !== '-' ? '('+pegawai.nip+')' : ''}`;
+            selectPegawai.appendChild(option);
+        });
+
+        selectPegawai.addEventListener('change', (e) => {
+            const selectedId = e.target.value;
+            const pegawai = daftarPegawai.find(p => p.id === selectedId);
+            inputJabatan.value = pegawai ? pegawai.jabatan : "";
+        });
+
+        
+        // Geofencing 
+        const SCHOOL_LAT = -8.641009750387648; 
+        const SCHOOL_LNG = 116.38820085242078; 
+        const ALLOWED_RADIUS = 150;
+
+        const btnMasuk = document.getElementById('btn-masuk');
+        const btnPulang = document.getElementById('btn-pulang');
+        let currentLat = null;
+        let currentLng = null;
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3;
+            const φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        function updateGeoUI(status, msg, dist) {
+            const bar = document.getElementById('location-status-bar');
+            bar.className = 'w-full py-2 px-4 text-sm font-semibold flex items-center justify-center space-x-2 transition-colors duration-300';
+            
+            if (status === 'success') {
+                bar.classList.add('bg-green-100', 'text-green-800', 'border-b', 'border-green-200');
+                document.getElementById('location-icon').className = 'fas fa-map-marker-alt';
+                btnMasuk.disabled = false; btnPulang.disabled = false;
+                btnMasuk.className = "w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-sekolah-600 hover:bg-sekolah-700 cursor-pointer transition-all";
+                btnPulang.className = "w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 cursor-pointer transition-all";
+                msg += dist ? ` (${Math.round(dist)}m)` : '';
+            } else {
+                bar.classList.add('bg-red-100', 'text-red-800', 'border-b', 'border-red-200');
+                document.getElementById('location-icon').className = 'fas fa-exclamation-triangle';
+                btnMasuk.disabled = true; btnPulang.disabled = true;
+                btnMasuk.className = btnPulang.className = "w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gray-400 cursor-not-allowed transition-all";
+                if(dist) msg += ` (${Math.round(dist)}m / Maks ${ALLOWED_RADIUS}m)`;
+            }
+            document.getElementById('location-text').textContent = msg;
+        }
+
+        if (MODE_UJICOBA) {
+            currentLat = SCHOOL_LAT; 
+            currentLng = SCHOOL_LNG;
+            updateGeoUI('success', 'MODE UJICOBA AKTIF (Bebas Lokasi)', 0);
+        } else if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(
+                (pos) => {
+                    currentLat = pos.coords.latitude;
+                    currentLng = pos.coords.longitude;
+                    const distance = calculateDistance(SCHOOL_LAT, SCHOOL_LNG, currentLat, currentLng);
+                    if (distance <= ALLOWED_RADIUS) updateGeoUI('success', 'Lokasi valid.', distance);
+                    else updateGeoUI('error', 'Di luar area sekolah.', distance);
+                },
+                (err) => updateGeoUI('error', 'Gagal akses lokasi. Pastikan GPS menyala.'),
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        } else {
+            updateGeoUI('error', 'Browser tidak mendukung GPS.');
+        }
+
+        
+        // Logika Form
+        const detailContainer = document.getElementById('keterangan-detail-container');
+        const detailInput = document.getElementById('detail-keterangan');
+        let localData = []; 
+
+        document.querySelectorAll('input[name="keterangan"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.value === 'Izin' || e.target.value === 'Sakit') {
+                    detailContainer.classList.remove('hidden'); detailInput.required = true;
+                } else {
+                    detailContainer.classList.add('hidden'); detailInput.required = false; detailInput.value = '';
+                }
+            });
+        });
+
+        async function handleAttendance(jenisAbsen) {
+            const form = document.getElementById('attendance-form');
+            if (!form.checkValidity() || !selectPegawai.value) {
+                alert("Harap lengkapi data, pastikan Anda telah memilih nama!");
+                return;
+            }
+
+            const pegawai = daftarPegawai.find(p => p.id === selectPegawai.value);
+            const statusRadio = document.querySelector('input[name="keterangan"]:checked').value;
+            
+            const payload = {
+                tanggal: new Date().toLocaleDateString('id-ID'),
+                waktu: new Date().toLocaleTimeString('id-ID', { hour12: false }),
+                nama: pegawai.nama,
+                nip: pegawai.nip,
+                jabatan: pegawai.jabatan,
+                jenis_absen: jenisAbsen.toUpperCase(),
+                status: statusRadio,
+                keterangan: detailInput.value || "-",
+                lat: currentLat,
+                lng: currentLng
+            };
+
+            saveToLocal(payload);
+
+            const overlay = document.getElementById('loading-overlay');
+            overlay.classList.remove('hidden');
+
+            try {
+                // Perbaikan: Cek URL dan gunakan text/plain untuk menghindari error CORS
+                if(GOOGLE_SHEETS_API_URL !== "URL_GOOGLE_APPS_SCRIPT_ANDA_DI_SINI" && GOOGLE_SHEETS_API_URL.startsWith("https://script.google.com")) {
+                    await fetch(GOOGLE_SHEETS_API_URL, {
+                        method: 'POST',
+                        mode: 'no-cors', 
+                        cache: 'no-cache',
+                        headers: { 
+                            'Content-Type': 'text/plain;charset=utf-8' 
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                } else if (GOOGLE_SHEETS_API_URL === "URL_GOOGLE_APPS_SCRIPT_ANDA_DI_SINI") {
+                    console.warn("URL Google Sheets belum diatur. Hanya menyimpan lokal.");
+                }
+                
+                showModal('success', `Absen ${jenisAbsen} Berhasil`, `Terima kasih ${pegawai.nama}. Data disimpan.`);
+                form.reset();
+                inputJabatan.value = '';
+                document.querySelector('input[value="Hadir"]').checked = true;
+                detailContainer.classList.add('hidden');
+            } catch (error) {
+                showModal('error', 'Gagal Mengirim', 'Data tersimpan di perangkat, tapi gagal terhubung ke Spreadsheet. Cek koneksi.');
+            } finally {
+                overlay.classList.add('hidden');
+            }
+        }
+
+        btnMasuk.addEventListener('click', () => handleAttendance('Masuk'));
+        btnPulang.addEventListener('click', () => handleAttendance('Pulang'));
+
+        
+        function saveToLocal(data) {
+            let existing = localData.find(d => d.tanggal === data.tanggal && d.nama === data.nama);
+            if (data.jenis_absen === 'MASUK') {
+                if(!existing) localData.push({...data, waktu_masuk: data.waktu, waktu_pulang: "-"});
+                else { existing.waktu_masuk = data.waktu; existing.status = data.status; existing.keterangan = data.keterangan; }
+            } else {
+                if(!existing) localData.push({...data, waktu_masuk: "-", waktu_pulang: data.waktu});
+                else existing.waktu_pulang = data.waktu;
+            }
+        }
+
+        const modal = document.getElementById('modal');
+        function showModal(type, title, message) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').textContent = message;
+            const icon = document.getElementById('modal-icon');
+            if (type === 'success') {
+                icon.className = "mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4 text-green-600 text-2xl";
+                icon.innerHTML = '<i class="fas fa-check"></i>';
+            } else {
+                icon.className = "mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4 text-red-600 text-2xl";
+                icon.innerHTML = '<i class="fas fa-times"></i>';
+            }
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+        }
+
+        document.getElementById('btn-close-modal').addEventListener('click', () => {
+            modal.classList.add('opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        });
+
+        // === PENGATURAN KUNCI PIN ADMINISTRATOR ===
+        const ADMIN_PIN = "1983"; // Silakan ganti PIN sesuai keinginan Anda
+        const modalPin = document.getElementById('modal-pin');
+        const inputPin = document.getElementById('input-pin');
+        const pinError = document.getElementById('pin-error');
+        const modalRekap = document.getElementById('modal-rekap');
+
+        // Fungsi untuk Render Tabel Rekap
+        function bukaDanRenderRekap() {
+            const tbody = document.getElementById('rekap-table-body');
+            tbody.innerHTML = '';
+            
+            if(localData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Belum ada data kehadiran di sesi ini. Data utama ada di Google Sheets.</td></tr>';
+            } else {
+                [...localData].reverse().forEach(d => {
+                    const statusColor = d.status === 'Hadir' ? 'green' : (d.status === 'Sakit' ? 'yellow' : 'blue');
+                    const badge = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-${statusColor}-100 text-${statusColor}-800">${d.status}</span>`;
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-gray-900">${d.tanggal}</td>
+                            <td class="px-6 py-4 whitespace-nowrap"><div class="font-medium">${d.nama}</div><div class="text-xs text-gray-500">${d.jabatan}</div></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">${badge}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center font-mono">${d.waktu_masuk || '-'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center font-mono">${d.waktu_pulang || '-'}</td>
+                            <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title="${d.keterangan}">${d.keterangan}</td>
+                        </tr>`;
+                });
+            }
+            modalRekap.classList.remove('hidden');
+            setTimeout(() => modalRekap.classList.remove('opacity-0'), 10);
+        }
+
+        // Tombol Buka Rekap (Sekarang Langsung Buka Tanpa PIN)
+        document.getElementById('btn-show-rekap').addEventListener('click', () => {
+            bukaDanRenderRekap();
+        });
+
+        // Tombol Batal PIN
+        document.getElementById('btn-cancel-pin').addEventListener('click', () => {
+            modalPin.classList.add('opacity-0');
+            setTimeout(() => modalPin.classList.add('hidden'), 300);
+        });
+
+        // Verifikasi PIN dengan tombol Enter pada keyboard
+        inputPin.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                document.getElementById('btn-submit-pin').click();
+            }
+        });
+
+        // Proses Verifikasi PIN untuk EXPORT
+        document.getElementById('btn-submit-pin').addEventListener('click', () => {
+            if (inputPin.value === ADMIN_PIN) {
+                // PIN Benar: Tutup modal PIN, lalu jalankan ekspor
+                modalPin.classList.add('opacity-0');
+                setTimeout(() => {
+                    modalPin.classList.add('hidden');
+                    eksporDataKeExcel();
+                }, 300);
+            } else {
+                // PIN Salah: Tampilkan pesan error
+                pinError.classList.remove('hidden');
+                inputPin.value = '';
+                inputPin.focus();
+            }
+        });
+
+        // Tombol Tutup Rekap (Silang di pojok kanan atas modal rekap)
+        document.getElementById('btn-close-rekap').addEventListener('click', () => {
+            modalRekap.classList.add('opacity-0');
+            setTimeout(() => modalRekap.classList.add('hidden'), 300);
+        });
+
+        // === 5. EXPORT KE EXCEL (CSV) DENGAN PIN ===
+        
+        // Tombol Ekspor Excel memunculkan Modal PIN terlebih dahulu
+        document.getElementById('btn-export-excel').addEventListener('click', () => {
+            if (localData.length === 0) {
+                alert("Tidak ada data untuk diekspor saat ini.");
+                return;
+            }
+            // Munculkan Modal PIN
+            inputPin.value = '';
+            pinError.classList.add('hidden');
+            modalPin.classList.remove('hidden');
+            setTimeout(() => {
+                modalPin.classList.remove('opacity-0');
+                inputPin.focus();
+            }, 10);
+        });
+
+        // Fungsi asli untuk mengekspor data
+        function eksporDataKeExcel() {
+            let csvContent = "Tanggal,Nama,NIP,Jabatan,Status,Jam Masuk,Jam Pulang,Keterangan\n";
+            
+            localData.forEach(row => {
+                const cleanNote = row.keterangan.replace(/"/g, '""'); 
+                csvContent += `"${row.tanggal}","${row.nama}","${row.nip}","${row.jabatan}","${row.status}","${row.waktu_masuk}","${row.waktu_pulang}","${cleanNote}"\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Rekap_Absen_SDN_1_Rarang_Selatan_${new Date().toLocaleDateString('id-ID').replace(/\//g, '-')}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+    </script>
+</body>
+</html>
